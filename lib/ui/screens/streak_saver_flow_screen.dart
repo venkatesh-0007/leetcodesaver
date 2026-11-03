@@ -6,6 +6,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/utils/time_utils.dart';
 import '../../data/models/language.dart';
 import '../../data/models/submission_attempt.dart';
+import '../../providers/heatmap_providers.dart';
 import '../../providers/problem_providers.dart';
 import '../../providers/submission_providers.dart';
 import '../widgets/difficulty_badge.dart';
@@ -34,30 +35,34 @@ class _StreakSaverFlowScreenState extends ConsumerState<StreakSaverFlowScreen> {
     if (problem == null) return;
 
     // Open Webview
-    final verdict = await Navigator.push<SubmissionVerdict>(
+    final result = await Navigator.push<SubmissionResult>(
       context,
       MaterialPageRoute(
         builder: (_) => AuthenticatedSubmissionWebviewScreen(problem: problem),
       ),
     );
 
-    if (verdict != null) {
+    if (result != null) {
       if (!mounted) return;
       await ref.read(submissionHistoryProvider.notifier).recordSubmission(
             problemId: problem.id ?? 0,
             problemTitle: problem.title,
             problemSlug: problem.slug,
             language: problem.language,
-            verdict: verdict,
+            verdict: result.verdict,
+            leetCodeSubmissionId: result.submissionId,
+            details: result.details,
           );
 
       if (!mounted) return;
-      if (verdict == SubmissionVerdict.accepted) {
-        _showSuccessDialog(problem.title);
+      if (result.verdict == SubmissionVerdict.accepted) {
+        // Trigger live sync with LeetCode
+        ref.read(syncNotifierProvider.notifier).syncWithLeetCode();
+        _showSuccessDialog(problem.title, result.details);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Submission recorded as ${verdict.displayName}.'),
+            content: Text('Submission recorded as ${result.verdict.displayName}.'),
             backgroundColor: AppColors.surfaceElevated,
           ),
         );
@@ -65,7 +70,7 @@ class _StreakSaverFlowScreenState extends ConsumerState<StreakSaverFlowScreen> {
     }
   }
 
-  void _showSuccessDialog(String title) {
+  void _showSuccessDialog(String title, String? details) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -91,10 +96,24 @@ class _StreakSaverFlowScreenState extends ConsumerState<StreakSaverFlowScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Accepted submission for "$title" has been verified and recorded.',
+              'Accepted submission for "$title" has been submitted to LeetCode and verified.',
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
             ),
+            if (details != null && details.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.accepted.withAlpha(25),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  details,
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.accepted),
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () {
