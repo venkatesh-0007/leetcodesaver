@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LeetStreak</string>
+    <string name="widget_name">LeetStreak</string>
+    <string name="widget_description">Monitor your LeetCode streak and quickly submit solutions.</string>
+    <string name="tile_label">Save Streak</string>
+</resources>
+
